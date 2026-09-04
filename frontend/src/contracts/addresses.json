@@ -1,0 +1,22 @@
+{
+  "network": "sepolia",
+  "chainId": 11155111,
+  "mockERC20": "0x7e35761AC3EE6395Aab7F1074DDB9838D565a858",
+  "confidentialToken": "0x65D7BDB2433b57fd8F68F43cd98543969a721C87",
+  "nullYield": "0xf4C456EF3694A7b27d2818531C5475A73C24d6F3",
+  "prizeReserve": "0x3F75820419fBf9b1A23B61bD6caB5C8429187DFA",
+  "startBlock": 11633541,
+  "mockERC20Block": 11633541,
+  "confidentialTokenBlock": 11633542,
+  "nullYieldBlock": 11633544,
+  "prizeReserveBlock": 11633546,
+  "latestBlockAtDeploy": 11633550,
+  "prizePerDraw": "100000000",
+  "drawInterval": 300,
+  "distributionAmount": "100000000",
+  "distributionInterval": 300,
+  "deployer": "0x76233C3D6c4D1A715Acad5D83031E686b2a88349",
+  "keeper": "0x76233C3D6c4D1A715Acad5D83031E686b2a88349",
+  "owner": "0x76233C3D6c4D1A715Acad5D83031E686b2a88349",
+  "timestamp": "2026-09-04T12:49:14.829Z"
+}
