@@ -7,6 +7,7 @@ import {
   formatUnits,
   parseUnits,
   BrowserProvider,
+  JsonRpcProvider,
   MaxUint256,
 } from "ethers";
 import {
@@ -42,6 +43,11 @@ const FAUCET_AMOUNT_LABEL = "1,000";
 const COOLDOWN_LABEL = "24 hours";
 const DECIMALS = 6;
 
+// Dedicated read RPC (Vercel env first, then reliable public fallback)
+const READ_RPC =
+  import.meta.env.VITE_SEPOLIA_RPC_URL ||
+  "https://rpc.ankr.com/eth_sepolia";
+
 const Faucet = () => {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
@@ -67,6 +73,12 @@ const Faucet = () => {
 
   const { format, isReady, remaining } = useCountdown(nextClaimTime);
 
+  // Read-only provider (does not depend on wallet RPC)
+  const getReadProvider = useCallback(() => {
+    return new JsonRpcProvider(READ_RPC);
+  }, []);
+
+  // Write signer (wallet only)
   const getSigner = useCallback(async () => {
     if (!walletClient) return null;
     const provider = new BrowserProvider(walletClient.transport);
@@ -74,11 +86,11 @@ const Faucet = () => {
   }, [walletClient]);
 
   const loadData = useCallback(async () => {
-    if (!address || !walletClient) return;
+    if (!address) return;
     setRefreshing(true);
     try {
-      const signer = await getSigner();
-      const token = new Contract(addresses.mockERC20, MockERC20ABI, signer);
+      const provider = getReadProvider();
+      const token = new Contract(addresses.mockERC20, MockERC20ABI, provider);
 
       const [bal, next] = await Promise.all([
         token.balanceOf(address),
@@ -93,15 +105,16 @@ const Faucet = () => {
     } finally {
       setRefreshing(false);
     }
-  }, [address, walletClient, getSigner]);
+  }, [address, getReadProvider]);
 
   useEffect(() => {
-    if (isConnected) loadData();
-  }, [isConnected, loadData]);
+    if (isConnected && address) loadData();
+  }, [isConnected, address, loadData]);
 
   // ─── 1. Claim Faucet ────────────────────────────────────────────────────────
   const handleClaim = async () => {
     if (!isConnected) return toast.warning("Connect your wallet first");
+    if (!walletClient) return toast.warning("Wallet not ready yet");
     if (!isReady) {
       return toast.warning(`Faucet locked. Try again in ${format()}`);
     }
@@ -109,13 +122,16 @@ const Faucet = () => {
     setClaimLoading(true);
     try {
       const signer = await getSigner();
+      if (!signer) throw new Error("Signer unavailable");
       const token = new Contract(addresses.mockERC20, MockERC20ABI, signer);
 
       toast.info(`Claiming ${FAUCET_AMOUNT_LABEL} mUSDC...`);
       const tx = await token.faucet();
       await tx.wait();
 
-      toast.success(`Claimed ${FAUCET_AMOUNT_LABEL} mUSDC! Next claim in 24 hours.`);
+      toast.success(
+        `Claimed ${FAUCET_AMOUNT_LABEL} mUSDC! Next claim in 24 hours.`
+      );
       await loadData();
     } catch (err) {
       console.error(err);
@@ -127,7 +143,10 @@ const Faucet = () => {
       ) {
         toast.error("This wallet already claimed within the last 24 hours.");
         await loadData();
-      } else if (msg.includes("user rejected") || err.code === "ACTION_REJECTED") {
+      } else if (
+        msg.includes("user rejected") ||
+        err.code === "ACTION_REJECTED"
+      ) {
         toast.warning("Transaction rejected");
       } else {
         toast.error(msg || "Faucet claim failed");
@@ -142,18 +161,32 @@ const Faucet = () => {
     if (!wrapAmount || Number(wrapAmount) <= 0) {
       return toast.warning("Enter a valid amount");
     }
+    if (!walletClient) return toast.warning("Wallet not ready yet");
+
     setWrapLoading(true);
     try {
       const signer = await getSigner();
+      if (!signer) throw new Error("Signer unavailable");
+
       const erc20 = new Contract(addresses.mockERC20, MockERC20ABI, signer);
-      const confidentialToken = new Contract(addresses.confidentialToken, ConfidentialTokenABI, signer);
+      const confidentialToken = new Contract(
+        addresses.confidentialToken,
+        ConfidentialTokenABI,
+        signer
+      );
       const amount = parseUnits(wrapAmount, DECIMALS);
 
       // Approve underlying ERC-20
-      const allowance = await erc20.allowance(address, addresses.confidentialToken);
+      const allowance = await erc20.allowance(
+        address,
+        addresses.confidentialToken
+      );
       if (allowance < amount) {
         toast.info("Approving mUSDC spend...");
-        const txA = await erc20.approve(addresses.confidentialToken, MaxUint256);
+        const txA = await erc20.approve(
+          addresses.confidentialToken,
+          MaxUint256
+        );
         await txA.wait();
         toast.success("Approval confirmed");
       }
@@ -167,7 +200,9 @@ const Faucet = () => {
       await loadData();
     } catch (err) {
       console.error("Wrap error:", err);
-      toast.error(err.reason || err.shortMessage || err.message || "Wrap failed");
+      toast.error(
+        err.reason || err.shortMessage || err.message || "Wrap failed"
+      );
     } finally {
       setWrapLoading(false);
     }
@@ -179,11 +214,18 @@ const Faucet = () => {
       return toast.warning("Enter a valid amount");
     }
     if (!fheReady) return toast.warning("FHE SDK initializing...");
+    if (!walletClient) return toast.warning("Wallet not ready yet");
 
     setUnwrapLoading(true);
     try {
       const signer = await getSigner();
-      const confidentialToken = new Contract(addresses.confidentialToken, ConfidentialTokenABI, signer);
+      if (!signer) throw new Error("Signer unavailable");
+
+      const confidentialToken = new Contract(
+        addresses.confidentialToken,
+        ConfidentialTokenABI,
+        signer
+      );
 
       toast.info("Encrypting unwrap amount…");
       const { handle, proof } = await encryptAmount(
@@ -238,7 +280,10 @@ const Faucet = () => {
         clearValue = pub.clearValue;
         decryptionProof = pub.proof && pub.proof !== "0x" ? pub.proof : "0x";
       } catch {
-        clearValue = await decryptHandle(encAmount, addresses.confidentialToken);
+        clearValue = await decryptHandle(
+          encAmount,
+          addresses.confidentialToken
+        );
       }
 
       const clearU64 = BigInt(clearValue);
@@ -262,7 +307,10 @@ const Faucet = () => {
       const msg = err.reason || err.shortMessage || err.message || "";
       if (msg.includes("ambiguous function")) {
         toast.error("ABI overload — use unwrap(address,address,bytes32,bytes)");
-      } else if (msg.includes("ResolverNotFound") || msg.includes("ZamaProtocol")) {
+      } else if (
+        msg.includes("ResolverNotFound") ||
+        msg.includes("ZamaProtocol")
+      ) {
         toast.error("FHE gateway/resolver issue on this network.");
       } else if (msg.includes("InvalidKMSSignatures")) {
         toast.error("Invalid decryption proof — wait and retry finalize.");
@@ -294,7 +342,8 @@ const Faucet = () => {
             Claim & <span className="gradient-text">Shield Tokens</span>
           </h1>
           <p className="text-text-secondary text-lg max-w-xl mx-auto leading-relaxed">
-            Claim testnet mUSDC and wrap it into encrypted cUSDC to prepare for the NullYield Pool.
+            Claim testnet mUSDC and wrap it into encrypted cUSDC to prepare for
+            the NullYield Pool.
           </p>
         </motion.div>
 
@@ -335,7 +384,9 @@ const Faucet = () => {
                   title="Refresh Balance"
                 >
                   <RefreshCw
-                    className={`w-5 h-5 ${refreshing ? "animate-spin text-accent-400" : ""}`}
+                    className={`w-5 h-5 ${
+                      refreshing ? "animate-spin text-accent-400" : ""
+                    }`}
                   />
                 </button>
               </div>
@@ -343,7 +394,6 @@ const Faucet = () => {
 
             {/* Side-by-Side Grid */}
             <div className="grid md:grid-cols-2 gap-6">
-              
               {/* 1. Claim Faucet Card */}
               <div className="card flex flex-col justify-between">
                 <div>
@@ -417,7 +467,8 @@ const Faucet = () => {
                       </>
                     ) : (
                       <>
-                        <Droplet className="w-5 h-5" /> Claim {FAUCET_AMOUNT_LABEL} mUSDC
+                        <Droplet className="w-5 h-5" /> Claim{" "}
+                        {FAUCET_AMOUNT_LABEL} mUSDC
                       </>
                     )}
                   </button>
@@ -529,7 +580,8 @@ const Faucet = () => {
                     >
                       {unwrapLoading ? (
                         <>
-                          <Loader2 className="w-5 h-5 animate-spin" /> Requesting...
+                          <Loader2 className="w-5 h-5 animate-spin" />{" "}
+                          Requesting...
                         </>
                       ) : (
                         <>
@@ -540,7 +592,6 @@ const Faucet = () => {
                   )}
                 </div>
               </div>
-
             </div>
 
             {/* Footer Navigation CTA */}

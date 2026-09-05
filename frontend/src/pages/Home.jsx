@@ -42,7 +42,7 @@ const NullYieldABI = Array.isArray(RawNullYieldABI)
 
 const READ_RPC =
   import.meta.env.VITE_SEPOLIA_RPC_URL ||
-  "https://ethereum-sepolia-rpc.publicnode.com";
+  "https://rpc.ankr.com/eth_sepolia";
 
 const EASE = [0.16, 1, 0.3, 1];
 

@@ -134,7 +134,7 @@ const Draws = () => {
   const getReadProvider = useCallback(() => {
     const rpc =
       import.meta.env.VITE_SEPOLIA_RPC_URL ||
-      "https://ethereum-sepolia-rpc.publicnode.com";
+      "https://rpc.ankr.com/eth_sepolia";
     return new JsonRpcProvider(rpc);
   }, []);
 
