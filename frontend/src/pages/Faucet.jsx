@@ -7,7 +7,6 @@ import {
   formatUnits,
   parseUnits,
   BrowserProvider,
-  JsonRpcProvider,
   MaxUint256,
 } from "ethers";
 import {
@@ -30,6 +29,7 @@ import RawConfidentialTokenABI from "../contracts/ConfidentialToken.json";
 import { useZamaEncrypt } from "../hooks/useZamaEncrypt";
 import { useCountdown } from "../hooks/useCountdown";
 import { toast } from "../components/Toaster";
+import { getReadProvider } from "../lib/rpcProvider";
 
 // Safely resolve raw ABI array or Hardhat JSON artifact
 const MockERC20ABI = Array.isArray(RawMockERC20ABI)
@@ -42,11 +42,6 @@ const ConfidentialTokenABI = Array.isArray(RawConfidentialTokenABI)
 const FAUCET_AMOUNT_LABEL = "1,000";
 const COOLDOWN_LABEL = "24 hours";
 const DECIMALS = 6;
-
-// Dedicated read RPC (Vercel env first, then reliable public fallback)
-const READ_RPC =
-  import.meta.env.VITE_SEPOLIA_RPC_URL ||
-  "https://rpc.ankr.com/eth_sepolia";
 
 const Faucet = () => {
   const { address, isConnected } = useAccount();
@@ -73,11 +68,6 @@ const Faucet = () => {
 
   const { format, isReady, remaining } = useCountdown(nextClaimTime);
 
-  // Read-only provider (does not depend on wallet RPC)
-  const getReadProvider = useCallback(() => {
-    return new JsonRpcProvider(READ_RPC);
-  }, []);
-
   // Write signer (wallet only)
   const getSigner = useCallback(async () => {
     if (!walletClient) return null;
@@ -101,11 +91,11 @@ const Faucet = () => {
       setNextClaimTime(Number(next));
     } catch (err) {
       console.error("Load error:", err);
-      toast.error("Failed to load faucet data");
+      toast.error("Failed to load faucet data. Retrying...");
     } finally {
       setRefreshing(false);
     }
-  }, [address, getReadProvider]);
+  }, [address]);
 
   useEffect(() => {
     if (isConnected && address) loadData();
@@ -121,12 +111,15 @@ const Faucet = () => {
 
     setClaimLoading(true);
     try {
+      toast.info(`Claiming ${FAUCET_AMOUNT_LABEL} mUSDC...`);
       const signer = await getSigner();
       if (!signer) throw new Error("Signer unavailable");
-      const token = new Contract(addresses.mockERC20, MockERC20ABI, signer);
 
-      toast.info(`Claiming ${FAUCET_AMOUNT_LABEL} mUSDC...`);
+      const token = new Contract(addresses.mockERC20, MockERC20ABI, signer);
+      
+      // Execute faucet claim directly through wallet signer
       const tx = await token.faucet();
+      toast.info("Transaction submitted, awaiting confirmation...");
       await tx.wait();
 
       toast.success(
@@ -134,7 +127,7 @@ const Faucet = () => {
       );
       await loadData();
     } catch (err) {
-      console.error(err);
+      console.error("Claim error:", err);
       const msg = err.reason || err.shortMessage || err.message || "";
       if (
         msg.includes("FaucetCooldownActive") ||
@@ -145,7 +138,9 @@ const Faucet = () => {
         await loadData();
       } else if (
         msg.includes("user rejected") ||
-        err.code === "ACTION_REJECTED"
+        msg.includes("ACTION_REJECTED") ||
+        err.code === "ACTION_REJECTED" ||
+        err.code === 4001
       ) {
         toast.warning("Transaction rejected");
       } else {
@@ -165,33 +160,33 @@ const Faucet = () => {
 
     setWrapLoading(true);
     try {
+      const readProvider = getReadProvider();
       const signer = await getSigner();
       if (!signer) throw new Error("Signer unavailable");
 
-      const erc20 = new Contract(addresses.mockERC20, MockERC20ABI, signer);
-      const confidentialToken = new Contract(
-        addresses.confidentialToken,
-        ConfidentialTokenABI,
-        signer
-      );
+      const erc20Read = new Contract(addresses.mockERC20, MockERC20ABI, readProvider);
       const amount = parseUnits(wrapAmount, DECIMALS);
 
-      // Approve underlying ERC-20
-      const allowance = await erc20.allowance(
+      // Check allowance via dApp RPC
+      const allowance = await erc20Read.allowance(
         address,
         addresses.confidentialToken
       );
+
       if (allowance < amount) {
         toast.info("Approving mUSDC spend...");
-        const txA = await erc20.approve(
-          addresses.confidentialToken,
-          MaxUint256
-        );
+        const erc20 = new Contract(addresses.mockERC20, MockERC20ABI, signer);
+        const txA = await erc20.approve(addresses.confidentialToken, MaxUint256);
         await txA.wait();
         toast.success("Approval confirmed");
       }
 
       toast.info("Wrapping mUSDC → encrypted cUSDC...");
+      const confidentialToken = new Contract(
+        addresses.confidentialToken,
+        ConfidentialTokenABI,
+        signer
+      );
       const tx = await confidentialToken.wrap(address, amount);
       await tx.wait();
 
@@ -208,7 +203,7 @@ const Faucet = () => {
     }
   };
 
-  // ─── Unwrap: cUSDC → mUSDC (request + finalize) ─────────────────────
+  // ─── Unwrap: cUSDC → mUSDC ──────────────────────────────────────────
   const handleUnwrap = async () => {
     if (!unwrapAmount || Number(unwrapAmount) <= 0) {
       return toast.warning("Enter a valid amount");
@@ -233,7 +228,6 @@ const Faucet = () => {
         addresses.confidentialToken
       );
 
-      // Disambiguate overload — externalEuint64 + inputProof
       const unwrapFn = confidentialToken.getFunction(
         "unwrap(address,address,bytes32,bytes)"
       );
@@ -242,7 +236,6 @@ const Faucet = () => {
       const tx = await unwrapFn(address, address, handle, proof);
       const receipt = await tx.wait();
 
-      // Parse UnwrapRequested for requestId
       let unwrapRequestId = null;
       for (const log of receipt.logs) {
         try {
@@ -261,7 +254,7 @@ const Faucet = () => {
 
       if (!unwrapRequestId) {
         toast.warning(
-          "Unwrap requested — open the tx on the explorer if mUSDC doesn’t arrive (requestId missing from receipt)."
+          "Unwrap requested — check explorer if tokens do not arrive shortly."
         );
         setUnwrapAmount("");
         await loadData();

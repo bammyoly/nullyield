@@ -10,7 +10,7 @@ import {
 } from "framer-motion";
 import { useAccount } from "wagmi";
 import { Link, useLocation } from "react-router-dom";
-import { Contract, JsonRpcProvider, formatUnits } from "ethers";
+import { Contract, formatUnits } from "ethers";
 import {
   Lock,
   Zap,
@@ -35,14 +35,11 @@ import { FaGithub, FaXTwitter } from "react-icons/fa6";
 
 import addresses from "../contracts/addresses.json";
 import RawNullYieldABI from "../contracts/NullYield.json";
+import { getReadProvider } from "../lib/rpcProvider";
 
 const NullYieldABI = Array.isArray(RawNullYieldABI)
   ? RawNullYieldABI
   : RawNullYieldABI.abi;
-
-const READ_RPC =
-  import.meta.env.VITE_SEPOLIA_RPC_URL ||
-  "https://rpc.ankr.com/eth_sepolia";
 
 const EASE = [0.16, 1, 0.3, 1];
 
@@ -248,7 +245,6 @@ const HeroSection = ({ isConnected }) => {
               variants={item}
               className="font-display font-extrabold text-[2.35rem] leading-[1.15] sm:text-5xl md:text-6xl lg:text-[3.4rem] xl:text-6xl tracking-tight mb-4 sm:mb-5 text-balance"
             >
-              {/* Row 1: Save + privately. */}
               <span className="block sm:inline">
                 Save{" "}
                 {/* Ghost locks width so scramble never reflows the line */}
@@ -268,10 +264,8 @@ const HeroSection = ({ isConnected }) => {
                 </span>
               </span>
 
-              {/* Space between lines on mobile; same line on large screens */}
               <span className="hidden sm:inline">{" "}</span>
 
-              {/* Row 2: Win fairly. — never moved by scramble */}
               <span className="relative inline-block whitespace-nowrap mt-1 sm:mt-0">
                 <span className="gradient-text-animated">Win fairly.</span>
                 <motion.span
@@ -327,7 +321,6 @@ const HeroSection = ({ isConnected }) => {
             </motion.div>
           </motion.div>
 
-          {/* RIGHT: animated vault with money */}
           <motion.div
             initial={{ opacity: 0, scale: 0.92, x: 24 }}
             animate={{ opacity: 1, scale: 1, x: 0 }}
@@ -339,7 +332,6 @@ const HeroSection = ({ isConnected }) => {
         </div>
       </motion.div>
 
-      {/* scroll cue */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -589,7 +581,7 @@ const StatsSection = () => {
 
   const load = useCallback(async () => {
     try {
-      const provider = new JsonRpcProvider(READ_RPC);
+      const provider = getReadProvider();
       const pool = new Contract(addresses.nullYield, NullYieldABI, provider);
       const [count, drawId, prize, state] = await Promise.all([
         pool.depositorCount(),
@@ -671,7 +663,6 @@ const StatsSection = () => {
               whileHover={{ y: -6 }}
               className="group relative flex h-full flex-col justify-between overflow-hidden border border-border/50 bg-gradient-to-b from-bg-tertiary/60 to-bg-primary/20 p-5 transition-all duration-500 hover:border-accent-500/40 hover:from-bg-tertiary/90"
             >
-              {/* Explorer-style hover orb */}
               <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-accent-500/20 blur-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
               
               <div className="relative">
@@ -765,7 +756,6 @@ const FeaturesSection = () => {
               whileHover={{ y: -6 }}
               className="group relative overflow-hidden border border-border/50 bg-gradient-to-b from-bg-tertiary/60 to-bg-primary/10 p-5 sm:p-6 md:p-8 transition-all duration-500 hover:border-accent-500/40 hover:from-bg-tertiary/90 cursor-default"
             >
-              {/* Explorer-style hover orb */}
               <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-accent-500/20 blur-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
               
               <div className="flex gap-4 relative z-10">
@@ -867,7 +857,6 @@ const HowItWorksSection = () => {
                   className="relative h-full"
                 >
                   <div className="group relative h-full flex flex-col overflow-hidden border border-border/50 bg-gradient-to-b from-bg-tertiary/60 to-bg-primary/10 p-5 sm:p-6 md:p-8 transition-all duration-500 hover:border-accent-500/40 hover:from-bg-tertiary/90">
-                    {/* Explorer-style hover orb */}
                     <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-accent-500/20 blur-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
                     
                     <div className="relative z-10 flex flex-col h-full">
@@ -909,11 +898,9 @@ const HowItWorksSection = () => {
   );
 };
 
-// Animated flow arrow between steps
 const FlowArrow = ({ index }) => {
   return (
     <>
-      {/* Desktop: horizontal arrow */}
       <div className="hidden lg:flex absolute top-1/2 -right-4 -translate-y-1/2 z-20 items-center justify-center pointer-events-none">
         <motion.div
           initial={{ opacity: 0, x: -10 }}
@@ -936,7 +923,6 @@ const FlowArrow = ({ index }) => {
         </motion.div>
       </div>
 
-      {/* Mobile/tablet: vertical arrow */}
       <div className="flex lg:hidden justify-center my-2 pointer-events-none">
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -1032,7 +1018,6 @@ const FaqSection = () => {
                     : ""
                 }`}
               >
-                {/* Explorer-style hover orb */}
                 <div className={`pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-accent-500/20 blur-2xl transition-opacity duration-500 ${isOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} />
                 
                 <button
@@ -1106,7 +1091,6 @@ const CTASection = ({ isConnected }) => {
           onPointerMove={onMove}
           className="group relative overflow-hidden rounded-2xl sm:rounded-3xl border border-border/50 bg-gradient-to-b from-bg-tertiary/60 to-bg-primary/20 p-7 sm:p-10 md:p-14 text-center transition-all duration-500 hover:border-accent-500/40 hover:from-bg-tertiary/90"
         >
-          {/* Explorer-style hover orb */}
           <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-accent-500/20 blur-[50px] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
           <div className="absolute inset-0 bg-radial-glow opacity-40 pointer-events-none" />
           <div className="pointer-events-none absolute inset-0 bg-grid-pattern bg-[size:40px_40px] opacity-30" />
@@ -1175,5 +1159,38 @@ const SectionHeader = ({ eyebrow, title, subtitle }) => (
     </p>
   </motion.div>
 );
+
+// ═══════════════════════════════════════════════════════════════
+// Footer
+// ═══════════════════════════════════════════════════════════════
+const Footer = () => {
+  return (
+    <footer className="py-10 px-5 sm:px-6 border-t border-border mt-8">
+      <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
+        <div className="flex items-center gap-3">
+          <img src="/nullyield-svg.svg" alt="NullYield Logo" className="w-8 h-8 drop-shadow-md" />
+          <div>
+            <div className="font-display font-bold text-sm text-text-primary">
+              Null<span className="gradient-text">Yield</span>
+            </div>
+            <div className="text-[10px] text-text-muted font-mono uppercase tracking-widest">
+              v1.0 · Sepolia Testnet
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap justify-center gap-5 text-xs font-mono uppercase tracking-widest text-text-muted">
+          <a href="#faqs" className="hover:text-accent-400 transition-colors flex items-center gap-1.5"><HelpCircle className="w-3.5 h-3.5" /> FAQ</a>
+          <a href="https://github.com/bammyoly/nullyield" target="_blank" rel="noreferrer" className="hover:text-accent-400 transition-colors flex items-center gap-1.5"><FaGithub className="w-3.5 h-3.5" /> Code</a>
+          <a href="https://docs.zama.ai/" target="_blank" rel="noreferrer" className="hover:text-accent-400 transition-colors flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5" /> Docs</a>
+        </div>
+
+        <div className="text-[10px] text-text-muted font-mono uppercase tracking-widest">
+          Built with <a href="https://zama.ai" target="_blank" rel="noreferrer" className="text-accent-400 hover:text-accent-300">Zama FHE</a>
+        </div>
+      </div>
+    </footer>
+  );
+};
 
 export default Home;

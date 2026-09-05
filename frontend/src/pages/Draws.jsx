@@ -4,7 +4,6 @@ import { useAccount, useWalletClient } from "wagmi";
 import {
   Contract,
   BrowserProvider,
-  JsonRpcProvider,
   formatUnits,
 } from "ethers";
 import {
@@ -25,7 +24,6 @@ import {
   ChevronDown,
   Eye,
   Hourglass,
-  AlertCircle,
   Bot,
 } from "lucide-react";
 
@@ -35,9 +33,10 @@ import { useCountdown } from "../hooks/useCountdown";
 import { useZamaEncrypt } from "../hooks/useZamaEncrypt";
 import { toast } from "../components/Toaster";
 import { queryFilterChunked } from "../lib/getLogsChunked";
+import { getReadProvider } from "../lib/rpcProvider";
 
 // Centralized Notifications Import
-import { getNotifyEmail, maybeEmailWinner } from "../lib/notifications";
+import { maybeEmailWinner } from "../lib/notifications";
 
 const NullYieldABI = Array.isArray(RawNullYieldABI)
   ? RawNullYieldABI
@@ -130,15 +129,7 @@ const Draws = () => {
 
   const lastKnownIds = useRef(new Set());
 
-  // Dedicated read provider
-  const getReadProvider = useCallback(() => {
-    const rpc =
-      import.meta.env.VITE_SEPOLIA_RPC_URL ||
-      "https://rpc.ankr.com/eth_sepolia";
-    return new JsonRpcProvider(rpc);
-  }, []);
-
-  // Write contract helper
+  // Write contract helper (Wallet instance for signing transactions)
   const getSignerPool = useCallback(async () => {
     if (!walletClient) throw new Error("Wallet not connected");
     const provider = new BrowserProvider(walletClient.transport);
@@ -146,6 +137,7 @@ const Draws = () => {
     return new Contract(addresses.nullYield, NullYieldABI, signer);
   }, [walletClient]);
 
+  // Read data helper (Shared FallbackProvider with quorum 1)
   const loadData = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -181,11 +173,11 @@ const Draws = () => {
         setReserveHandle(null);
       }
 
-      // ── HISTORY QUERY (Using Deployment Block Floor to optimize RPC query load) ──
+      // ── HISTORY QUERY (Incremental cache + Deployment Block Floor) ──
       const events = await queryFilterChunked(
         pool,
         pool.filters.DrawFinalized(),
-        addresses.nullYieldBlock
+        { fromBlock: addresses.nullYieldBlock }
       );
 
       // Deduplicate strictly by drawId
@@ -223,7 +215,7 @@ const Draws = () => {
     } finally {
       setRefreshing(false);
     }
-  }, [getReadProvider, address]);
+  }, [address]);
 
   useEffect(() => {
     loadData();

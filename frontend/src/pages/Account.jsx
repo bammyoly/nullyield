@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAccount, useWalletClient } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { Contract, formatUnits, BrowserProvider, JsonRpcProvider } from "ethers";
+import { Contract, formatUnits, BrowserProvider } from "ethers";
 import {
   Eye,
   EyeOff,
@@ -34,6 +34,7 @@ import RawMockERC20ABI from "../contracts/MockERC20.json";
 import { useZamaEncrypt } from "../hooks/useZamaEncrypt";
 import { toast } from "../components/Toaster";
 import { queryFilterChunked } from "../lib/getLogsChunked";
+import { getReadProvider } from "../lib/rpcProvider";
 
 // Centralized Notifications Import
 import {
@@ -113,19 +114,18 @@ const Account = () => {
     }
   }, [address]);
 
-  const getProvider = useCallback(() => {
-    if (walletClient) return new BrowserProvider(walletClient.transport);
-    const rpc =
-      import.meta.env.VITE_SEPOLIA_RPC_URL ||
-      "https://rpc.ankr.com/eth_sepolia";
-    return new JsonRpcProvider(rpc);
+  // Write signer (wallet only) for executing transactions
+  const getSigner = useCallback(async () => {
+    if (!walletClient) return null;
+    const provider = new BrowserProvider(walletClient.transport);
+    return provider.getSigner();
   }, [walletClient]);
 
   const loadData = useCallback(async () => {
     if (!address) return;
     setRefreshing(true);
     try {
-      const provider = getProvider();
+      const provider = getReadProvider(); // ✅ Shared failover with quorum: 1
       const erc20 = new Contract(addresses.mockERC20, MockERC20ABI, provider);
       const pool = new Contract(addresses.nullYield, NullYieldABI, provider);
       const confidentialToken = new Contract(addresses.confidentialToken, ConfidentialTokenABI, provider);
@@ -190,7 +190,7 @@ const Account = () => {
       const events = await queryFilterChunked(
         pool, 
         pool.filters.DrawFinalized(), 
-        addresses.nullYieldBlock
+        { fromBlock: addresses.nullYieldBlock }
       );
 
       const wins = events
@@ -219,7 +219,7 @@ const Account = () => {
     } finally {
       setRefreshing(false);
     }
-  }, [address, getProvider]);
+  }, [address]);
 
   useEffect(() => {
     if (!isConnected) return;
@@ -310,10 +310,12 @@ const Account = () => {
   };
 
   const handleClaim = async () => {
-    if (!walletClient) return;
+    if (!walletClient) return toast.warning("Wallet not connected");
     setLoad("claim", true);
     try {
-      const signer = await getProvider().getSigner();
+      const signer = await getSigner();
+      if (!signer) throw new Error("Signer unavailable");
+
       const pool = new Contract(addresses.nullYield, NullYieldABI, signer);
       toast.info("Claiming pending prize → your cUSDC wallet…");
       const tx = await pool.claim();
@@ -334,7 +336,9 @@ const Account = () => {
     if (drawState !== 0) return toast.warning("Locked during draw");
     setLoad("withdraw", true);
     try {
-      const signer = await getProvider().getSigner();
+      const signer = await getSigner();
+      if (!signer) throw new Error("Signer unavailable");
+
       const pool = new Contract(addresses.nullYield, NullYieldABI, signer);
       const tx = await pool.withdraw();
       await tx.wait();
