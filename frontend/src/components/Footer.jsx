@@ -29,9 +29,6 @@ const Footer = () => {
               <div className="font-display font-bold text-sm">
                 Null<span className="gradient-text">Yield</span>
               </div>
-              <div className="text-xs text-text-muted font-mono">
-                v1.0 · Sepolia Testnet
-              </div>
             </div>
           </div>
 
@@ -43,7 +40,7 @@ const Footer = () => {
               <HelpCircle className="w-4 h-4" /> FAQ
             </a>
             <a
-              href="https://github.com/your-org/nullyield"
+              href="https://github.com/bammyoly/nullyield"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="GitHub"
@@ -52,7 +49,7 @@ const Footer = () => {
               <FaGithub className="w-4 h-4" />
             </a>
             <a
-              href="https://docs.zama.ai/"
+              href="https://docs.zama.org/"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-accent-400 transition-colors inline-flex items-center gap-1.5"
@@ -60,7 +57,7 @@ const Footer = () => {
               <BookOpen className="w-4 h-4" /> Docs
             </a>
             <a
-              href="https://x.com/"
+              href="https://x.com/bamie99"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-accent-400 transition-colors inline-flex items-center gap-1.5"

@@ -227,9 +227,6 @@ const Navbar = () => {
                 <span className="font-display font-bold text-xl tracking-tight">
                   Null<span className="gradient-text">Yield</span>
                 </span>
-                <span className="text-[10px] text-text-muted font-mono tracking-wider uppercase mt-0.5 transition-colors group-hover:text-accent-500/70">
-                  Confidential · Yield
-                </span>
               </div>
             </Link>
           </div>

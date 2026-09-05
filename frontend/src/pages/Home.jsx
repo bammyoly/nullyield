@@ -246,26 +246,33 @@ const HeroSection = ({ isConnected }) => {
 
             <motion.h1
               variants={item}
-              className="font-display font-extrabold text-[2.35rem] leading-[1.1] sm:text-5xl md:text-6xl lg:text-[3.4rem] xl:text-6xl tracking-tight mb-4 sm:mb-5 text-balance"
+              className="font-display font-extrabold text-[2.35rem] leading-[1.15] sm:text-5xl md:text-6xl lg:text-[3.4rem] xl:text-6xl tracking-tight mb-4 sm:mb-5 text-balance"
             >
-              Save{" "}
-              {/* Ghost word locks layout width so scramble never pushes "Win fairly" */}
-              <span className="relative inline-grid align-baseline text-left">
-                <span
-                  className="invisible col-start-1 row-start-1 whitespace-nowrap"
-                  aria-hidden
-                >
-                  privately
-                </span>
-                <span className="col-start-1 row-start-1 whitespace-nowrap">
-                  <ScrambleText
-                    text="privately"
-                    className="text-text-muted tabular-nums"
-                  />
+              {/* Row 1: Save + privately. */}
+              <span className="block sm:inline">
+                Save{" "}
+                {/* Ghost locks width so scramble never reflows the line */}
+                <span className="relative inline-grid align-baseline text-left">
+                  <span
+                    className="invisible col-start-1 row-start-1 whitespace-nowrap pointer-events-none"
+                    aria-hidden="true"
+                  >
+                    privately
+                  </span>
+                  <span className="col-start-1 row-start-1 whitespace-nowrap overflow-hidden">
+                    <ScrambleText
+                      text="privately"
+                      className="text-text-muted tabular-nums"
+                    />
+                  </span>
                 </span>
               </span>
-              {" "}
-              <span className="relative inline-block whitespace-nowrap">
+
+              {/* Space between lines on mobile; same line on large screens */}
+              <span className="hidden sm:inline">{" "}</span>
+
+              {/* Row 2: Win fairly. — never moved by scramble */}
+              <span className="relative inline-block whitespace-nowrap mt-1 sm:mt-0">
                 <span className="gradient-text-animated">Win fairly.</span>
                 <motion.span
                   initial={{ scaleX: 0 }}
@@ -275,7 +282,6 @@ const HeroSection = ({ isConnected }) => {
                 />
               </span>
             </motion.h1>
-
             <motion.p
               variants={item}
               className="text-base sm:text-lg text-text-secondary max-w-xl mx-auto lg:mx-0 mb-7 sm:mb-8 leading-relaxed text-pretty"
