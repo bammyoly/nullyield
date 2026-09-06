@@ -285,6 +285,7 @@ Same pattern for winner index.
 ## 10. Notifications
 
 Client-side only (no backend PII store):
+
 We introduced a notification system that alerts users who optin whenever their wallet wins a draw.
 Emails are tied to one wallet.
 
@@ -295,7 +296,7 @@ Emails are tied to one wallet.
 
 ---
 
-## 11. Getting started (local + deploy)
+## 11. Local + deployment guide
 
 ```text
 nullyield/
@@ -339,7 +340,7 @@ Connect Sepolia → `/faucet`.
 ## 12. How to try NullYield as a judge / user
 
 ### Prerequisites
-- MetaMask / Zerion / Rabby on **Sepolia**  
+- MetaMask / OKX Wallet / Rabby on **Sepolia**  (Zerion has issues)
 - Small amount of **Sepolia ETH** (gas only)  
 - Live app: https://nullyield.vercel.app  
 
@@ -393,7 +394,7 @@ Private Key to operator/owner wallet already provided in the feedback form
 | 8 | Faucet / clear test-token instructions | ✅ | `/faucet` 1,000 mUSDC / 24h + this README |
 | 9 | Open-source public GitHub | ✅ | https://github.com/bammyoly/nullyield |
 
-### Judging axes
+### Shiiped axes
 
 | Axis | Coverage |
 |------|----------|
@@ -410,7 +411,7 @@ Private Key to operator/owner wallet already provided in the feedback form
 - O(log n) encrypted segment tree (scale past `MAX_DEPOSITORS = 50`)  
 - Multi-tier prizes (top-K)  
 - Real yield adapter (Aave / ERC-4626)  
-- Unattended keeper (Zama Node SDK)  
+- Unattended backend keeper (Zama Node SDK)  
 - Auto-finalize unwrap gateway callback  
 - Multi-asset confidential pools  
 
@@ -418,10 +419,9 @@ Private Key to operator/owner wallet already provided in the feedback form
 
 ## 16. License & credits
 
-- **License:** BSD-3-Clause-Clear  
-- **Built with:** [Zama](https://www.zama.org/)· [OpenZeppelin](https://www.openzeppelin.com/) confidential contracts · [RainbowKit](https://www.rainbowkit.com/) · [Wagmi](https://wagmi.sh/) · [ethers v6](https://docs.ethers.org/v6/)  
-- **Inspired by:** [PoolTogether](https://pooltogether.com/) no-loss prize savings  
-
+- **License:** Proprietary (All Rights Reserved - see [LICENSE.md](./LICENSE.md))
+- **Built with:** [Zama](https://www.zama.org/) · [OpenZeppelin](https://www.openzeppelin.com/) confidential contracts · [RainbowKit](https://www.rainbowkit.com/) · [Wagmi](https://wagmi.sh/) · [ethers v6](https://docs.ethers.org/v6/)  
+- **Inspired by:** [PoolTogether](https://pooltogether.com/) no-loss prize savings
 ---
 
 **NullYield = private savings, public fairness.**  
