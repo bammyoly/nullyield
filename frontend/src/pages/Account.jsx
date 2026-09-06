@@ -114,7 +114,7 @@ const Account = () => {
     }
   }, [address]);
 
-  // Write signer (wallet only) for executing transactions
+  // Write signer (wallet only)
   const getSigner = useCallback(async () => {
     if (!walletClient) return null;
     const provider = new BrowserProvider(walletClient.transport);
@@ -125,10 +125,14 @@ const Account = () => {
     if (!address) return;
     setRefreshing(true);
     try {
-      const provider = getReadProvider(); // ✅ Shared failover with quorum: 1
+      const provider = getReadProvider();
       const erc20 = new Contract(addresses.mockERC20, MockERC20ABI, provider);
       const pool = new Contract(addresses.nullYield, NullYieldABI, provider);
-      const confidentialToken = new Contract(addresses.confidentialToken, ConfidentialTokenABI, provider);
+      const confidentialToken = new Contract(
+        addresses.confidentialToken,
+        ConfidentialTokenABI,
+        provider
+      );
 
       const [musdc, state, shares, prize] = await Promise.all([
         erc20.balanceOf(address),
@@ -188,9 +192,13 @@ const Account = () => {
 
       // RPC log optimization: Query with deployment start block
       const events = await queryFilterChunked(
-        pool, 
-        pool.filters.DrawFinalized(), 
-        { fromBlock: addresses.nullYieldBlock }
+        pool,
+        pool.filters.DrawFinalized(),
+        {
+          fromBlock: Number(
+            addresses.nullYieldBlock || addresses.startBlock || 0
+          ),
+        }
       );
 
       const wins = events
@@ -412,7 +420,6 @@ const Account = () => {
   return (
     <main className="pt-32 pb-24 px-6 min-h-screen">
       <div className="max-w-5xl mx-auto">
-        {/* ── PAGE TITLE ── */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

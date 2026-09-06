@@ -3,50 +3,76 @@ import { JsonRpcProvider, FallbackProvider, Network } from "ethers";
 
 const SEPOLIA = Network.from(11155111);
 
-// Ordered by preference — drop flaky public endpoints
-const RPC_URLS = [
-  import.meta.env.VITE_SEPOLIA_RPC_URL,        // Alchemy (primary)
-  import.meta.env.VITE_SEPOLIA_RPC_URL_BACKUP, // Ankr with API key
-  "https://rpc.ankr.com/eth_sepolia",
+/** Ordered preference — put keyed RPCs first */
+export const RPC_URLS = [
+  import.meta.env.VITE_SEPOLIA_RPC_URL,          // Ankr (primary)
+  import.meta.env.VITE_SEPOLIA_RPC_URL_BACKUP,   // ethpanda / second key
+  "https://rpc.sepolia.ethpandaops.io",
   "https://1rpc.io/sepolia",
-  // avoid sepolia.drpc.org — it often returns 400 on free tier
+  "https://rpc.ankr.com/eth_sepolia",
 ].filter(Boolean);
 
-let _cachedProvider = null;
+let _fallback = null;
 
-/**
- * Read-only multi-RPC provider.
- * quorum: 1 → first successful response wins (no multi-node consensus required)
- */
+function makeProvider(url) {
+  return new JsonRpcProvider(url, SEPOLIA, { staticNetwork: SEPOLIA });
+}
+
+/** General reads (eth_call, getBlockNumber, etc.) */
 export function getReadProvider() {
-  if (_cachedProvider) return _cachedProvider;
+  if (_fallback) return _fallback;
 
-  if (RPC_URLS.length === 0) {
-    throw new Error("No RPC URLs configured. Set VITE_SEPOLIA_RPC_URL in .env / Vercel.");
+  if (!RPC_URLS.length) {
+    throw new Error("No RPC URLs — set VITE_SEPOLIA_RPC_URL");
   }
 
-  // Single URL → simple provider (no FallbackProvider quirks)
   if (RPC_URLS.length === 1) {
-    _cachedProvider = new JsonRpcProvider(RPC_URLS[0], SEPOLIA, {
-      staticNetwork: SEPOLIA,
-    });
-    return _cachedProvider;
+    _fallback = makeProvider(RPC_URLS[0]);
+    return _fallback;
   }
 
   const configs = RPC_URLS.map((url, i) => ({
-    provider: new JsonRpcProvider(url, SEPOLIA, { staticNetwork: SEPOLIA }),
-    priority: i + 1,   // lower = tried first
-    stallTimeout: 1500,
+    provider: makeProvider(url),
+    priority: i + 1,
     weight: 1,
+    stallTimeout: 2000,
   }));
 
-  _cachedProvider = new FallbackProvider(configs, SEPOLIA, {
-    quorum: 1, // ✅ critical — only 1 RPC needs to succeed
+  _fallback = new FallbackProvider(configs, SEPOLIA, {
+    quorum: 1, // first success wins
   });
 
-  return _cachedProvider;
+  return _fallback;
+}
+
+/**
+ * Try each RPC in order until fn(provider) succeeds.
+ * Use this for eth_getLogs / queryFilter — FallbackProvider is unreliable there.
+ */
+export async function withRpcFailover(fn, { label = "rpc" } = {}) {
+  const errors = [];
+
+  for (let i = 0; i < RPC_URLS.length; i++) {
+    const url = RPC_URLS[i];
+    const short = url.replace(/^https?:\/\//, "").slice(0, 40);
+    try {
+      const provider = makeProvider(url);
+      const result = await fn(provider, url, i);
+      if (i > 0) {
+        console.info(`[${label}] recovered via RPC #${i + 1} (${short})`);
+      }
+      return result;
+    } catch (err) {
+      const msg = err.shortMessage || err.message || String(err);
+      console.warn(`[${label}] RPC #${i + 1} failed (${short}):`, msg);
+      errors.push({ url, msg });
+    }
+  }
+
+  const detail = errors.map((e, i) => `#${i + 1}: ${e.msg}`).join(" | ");
+  throw new Error(`All RPCs failed for ${label}. ${detail}`);
 }
 
 export function resetReadProvider() {
-  _cachedProvider = null;
+  _fallback = null;
 }

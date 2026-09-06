@@ -424,4 +424,3 @@ Private Key to operator/owner wallet already provided in the feedback form
 
 **NullYield = private savings, public fairness.**  
 Deposit encrypted. Win fairly. Withdraw anytime.
-```

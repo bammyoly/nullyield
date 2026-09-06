@@ -1,88 +1,131 @@
-/**
- * src/lib/getLogsChunked.js
- * queryFilter in chunks of ≤9999 blocks (Sepolia public RPC limit).
- * Uses nullYieldBlock as deploy floor + incremental caching to save 95% of RPC calls.
- */
+// src/lib/getLogsChunked.js
 import addresses from "../contracts/addresses.json";
+import { Contract } from "ethers";
+import { withRpcFailover } from "./rpcProvider";
 
-// Memory cache across 15-second polling intervals
 const logsCache = new Map();
+const CHUNK = 2_000; // smaller chunks = fewer free-tier range kills
 
+function cacheKey(address, filter) {
+  const addr = (address || "").toLowerCase();
+  const topics = filter?.topics ? JSON.stringify(filter.topics) : "all";
+  return `${addr}_${topics}`;
+}
+
+/**
+ * queryFilter with:
+ * - nullYieldBlock floor
+ * - small chunks
+ * - full RPC loop on each chunk failure
+ * - no cache of failed/partial first scans
+ */
 export async function queryFilterChunked(contract, filter, options = {}) {
   if (!contract) return [];
 
-  // Handle positional number argument: queryFilterChunked(contract, filter, 7450000)
-  let fromBlockOpt = null;
-  let lookbackBlocks = null;
-  let chunkSize = 9999;
-
   if (typeof options === "number") {
-    fromBlockOpt = options;
-  } else if (typeof options === "object" && options !== null) {
-    fromBlockOpt = options.fromBlock;
-    lookbackBlocks = options.lookbackBlocks;
-    chunkSize = options.chunkSize || 9999;
+    options = { fromBlock: options };
   }
 
-  const provider = contract.runner?.provider || contract.provider;
-  if (!provider) return [];
+  const {
+    fromBlock: fromBlockOpt = null,
+    forceRefresh = false,
+    chunkSize = CHUNK,
+  } = options;
 
-  const latest = await provider.getBlockNumber();
+  const contractAddress = contract.target || contract.address;
+  const abi = contract.interface;
 
-  // Fix: Renamed from hushPoolBlock to nullYieldBlock
-  const deployFloor = Number(
-    addresses.nullYieldBlock || addresses.startBlock || 0
+  // Need a provider only for getBlockNumber — failover loop
+  const latest = await withRpcFailover(
+    async (provider) => provider.getBlockNumber(),
+    { label: "getBlockNumber" }
   );
 
-  let fromBlock;
-  if (fromBlockOpt != null) {
-    fromBlock = Math.max(0, Number(fromBlockOpt));
-  } else if (lookbackBlocks != null) {
-    fromBlock = Math.max(deployFloor, latest - Number(lookbackBlocks), 0);
-  } else {
-    fromBlock = Math.min(Math.max(0, deployFloor), latest);
-  }
+  const deployFloor = Number(
+    addresses.nullYieldBlock ?? addresses.startBlock ?? 0
+  );
 
-  // Safety cap on chunk size
-  const size = Math.min(Math.max(1, Number(chunkSize) || 9999), 9999);
+  const floor =
+    fromBlockOpt != null
+      ? Math.max(0, Number(fromBlockOpt))
+      : Math.max(0, deployFloor);
 
-  // Incremental cache key per contract event filter
-  const filterKey = `${contract.target || contract.address}_${
-    filter.topics ? JSON.stringify(filter.topics) : "all"
-  }`;
+  const fromBlock = Math.min(floor, latest);
+  const size = Math.min(Math.max(1, Number(chunkSize) || CHUNK), 9_999);
+  const key = cacheKey(contractAddress, filter);
 
-  const cached = logsCache.get(filterKey);
+  if (forceRefresh) logsCache.delete(key);
+
+  const cached = logsCache.get(key);
   let scanStart = fromBlock;
-  let cachedEvents = [];
+  let existing = [];
 
-  // If already fetched before, only scan NEW blocks since last poll
-  if (cached && cached.lastBlock < latest) {
+  if (
+    cached &&
+    !forceRefresh &&
+    cached.floor <= fromBlock &&
+    cached.lastBlock >= fromBlock &&
+    cached.complete
+  ) {
+    if (cached.lastBlock >= latest) return cached.events;
     scanStart = cached.lastBlock + 1;
-    cachedEvents = cached.events;
-  } else if (cached && cached.lastBlock >= latest) {
-    return cached.events;
+    existing = cached.events;
   }
 
-  const newEvents = [];
+  const fresh = [];
+  let cursor = scanStart;
+  let complete = true;
 
-  // Fetch missing block chunks
-  for (let start = scanStart; start <= latest; start += size) {
-    const end = Math.min(start + size - 1, latest);
+  while (cursor <= latest) {
+    const end = Math.min(cursor + size - 1, latest);
+
     try {
-      const part = await contract.queryFilter(filter, start, end);
-      newEvents.push(...part);
+      // Entire chunk tries RPC #1, then #2, then #3...
+      const part = await withRpcFailover(
+        async (provider) => {
+          const c = new Contract(contractAddress, abi, provider);
+          return c.queryFilter(filter, cursor, end);
+        },
+        { label: `getLogs ${cursor}-${end}` }
+      );
+      fresh.push(...part);
+      cursor = end + 1;
     } catch (e) {
-      console.warn(`[getLogs] ${start}-${end}:`, e.shortMessage || e.message);
+      complete = false;
+      console.warn(
+        `[getLogs] ALL RPCs failed for ${cursor}-${end}:`,
+        e.message
+      );
+      break;
     }
   }
 
-  const allEvents = [...cachedEvents, ...newEvents];
+  // merge + dedupe
+  const merged = [...existing, ...fresh];
+  const seen = new Set();
+  const deduped = [];
+  for (const ev of merged) {
+    const id =
+      ev.logIndex != null
+        ? `${ev.transactionHash}-${ev.logIndex}`
+        : `${ev.transactionHash}-${ev.args?.drawId ?? ""}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    deduped.push(ev);
+  }
 
-  // Save to memory cache for the current session
-  logsCache.set(filterKey, {
-    lastBlock: latest,
-    events: allEvents,
-  });
+  if (complete) {
+    logsCache.set(key, {
+      floor: fromBlock,
+      lastBlock: latest,
+      events: deduped,
+      complete: true,
+    });
+  }
 
-  return allEvents;
+  return deduped;
+}
+
+export function clearLogsCache() {
+  logsCache.clear();
 }

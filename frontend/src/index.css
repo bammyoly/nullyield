@@ -103,3 +103,9 @@
            bg-clip-text text-transparent;
   }
 }
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
