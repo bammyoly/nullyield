@@ -427,18 +427,3 @@ Private Key to operator/owner wallet already provided in the feedback form
 **NullYield = private savings, public fairness.**  
 Deposit encrypted. Win fairly. Withdraw anytime.
 ```
-
----
-
-### README review summary
-
-| Area | Your draft | Verdict |
-|------|------------|---------|
-| Problem / value prop | Clear | ✅ |
-| FHE draw fairness | Excellent (incl. anti-`min` bias) | ✅ |
-| Leakage analysis | Explicit tables | ✅ **judges love this** |
-| Requirements matrix | Complete | ✅ |
-| Judge how-to | Good | ⬆ Added 60s box + live links |
-| User onboarding | Slightly buried | ⬆ Faucet amount, gas, links up top |
-| Production details | Thin | ⬆ RPC failover + log floor called out |
-| Placeholders | Still `[Insert URL]` | ⬆ Filled with your real URLs |
