@@ -16,15 +16,17 @@ Only **you** can decrypt **your own** balance and winnings (EIP-712).
 
 ---
 
-## ⚡ For judges (60 seconds)
+## ⚡ For users
 
 1. Open **https://nullyield.vercel.app** → connect wallet on **Sepolia** (need a little Sepolia ETH for gas).
 2. **`/faucet`** → Claim **1,000 mUSDC** (once / 24h per wallet) → **Wrap** to confidential **cUSDC**.
-3. **`/pool`** → Decrypt cUSDC (EIP-712) → **Approve Null Pool operator** → **Deposit encrypted**.
+3. **`/pool`** → Decrypt cUSDC (EIP-712) → **Approve Null Pool operator** → **Deposit encrypted cUSDC**.
 4. **`/draws`** → public countdown + history; owner runs **Trigger → Reveal → Finalize**.
 5. **`/account`** → Decrypt pending prize → **Claim** → Decrypt wallet cUSDC → optional **Withdraw** (full principal).
 
-**What to evaluate:** encrypted balances, onchain FHE-weighted draw, no-loss withdraw, EIP-712 user decrypt, documented leakage, keeper/admin draw flow.
+**Important Note to Zama Judges.** 
+Private key to Owner/operator wallet  have been provided in the "Feedback on the Bounty Track" form to access operator controls
+
 
 ---
 
