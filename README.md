@@ -352,10 +352,8 @@ Connect Sepolia → `/faucet`.
 4. **`/draws`**  
    - Everyone: countdown, status, history  
    - Owner: **Fund reserve** → set interval (e.g. `300`) → **Trigger → Reveal → Finalize**  
-5. **`/account`** → **Decrypt pending prize** → **Claim** → **Decrypt wallet cUSDC** → see win.  
-6. **`/account`** → **Withdraw principal** whenever pool is idle.  
-
-Optional: **`/faucet` Unwrap** tab → cUSDC back to mUSDC.
+5. **`/account`** → **Decrypt pending prize** → **Claim** → **Decrypt wallet cUSDC** → **view win history** **Withdraw principal** whenever pool is idle.  
+6. .Optional: **`/faucet` Unwrap** tab → cUSDC back to mUSDC.
 
 **For Zama Judges**
 Private Key to operator/owner wallet already provided in the feedback form
