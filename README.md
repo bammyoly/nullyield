@@ -285,6 +285,8 @@ Same pattern for winner index.
 ## 10. Notifications
 
 Client-side only (no backend PII store):
+We introduced a notification system that alerts users who optin whenever their wallet wins a draw.
+Emails are tied to one wallet.
 
 - **EmailJS** opt-in on **Account** (per-wallet localStorage)  
 - Env: `VITE_EMAILJS_*`, `VITE_APP_URL`  
@@ -331,7 +333,6 @@ npm run dev
 
 Connect Sepolia → `/faucet`.
 
-**Vercel:** set the same `VITE_*` vars; include SPA rewrite (`vercel.json` → all routes → `index.html`).
 
 ---
 
@@ -355,6 +356,9 @@ Connect Sepolia → `/faucet`.
 
 Optional: **`/faucet` Unwrap** tab → cUSDC back to mUSDC.
 
+**For Zama Judges**
+Private Key to operator/owner wallet already provided in the feedback form
+
 ---
 
 ## 13. Error handling
@@ -373,7 +377,7 @@ Optional: **`/faucet` Unwrap** tab → cUSDC back to mUSDC.
 
 ---
 
-## 14. Project requirements — mapped to what shipped
+## 14. Project requirements — mapped to what is shipped
 
 ### Submission checklist
 
@@ -415,7 +419,7 @@ Optional: **`/faucet` Unwrap** tab → cUSDC back to mUSDC.
 ## 16. License & credits
 
 - **License:** BSD-3-Clause-Clear  
-- **Built with:** [Zama](https://www.zama.ai/) fhEVM · [OpenZeppelin](https://www.openzeppelin.com/) confidential contracts · [RainbowKit](https://www.rainbowkit.com/) · [Wagmi](https://wagmi.sh/) · [ethers v6](https://docs.ethers.org/v6/)  
+- **Built with:** [Zama](https://www.zama.org/)· [OpenZeppelin](https://www.openzeppelin.com/) confidential contracts · [RainbowKit](https://www.rainbowkit.com/) · [Wagmi](https://wagmi.sh/) · [ethers v6](https://docs.ethers.org/v6/)  
 - **Inspired by:** [PoolTogether](https://pooltogether.com/) no-loss prize savings  
 
 ---
@@ -438,7 +442,3 @@ Deposit encrypted. Win fairly. Withdraw anytime.
 | User onboarding | Slightly buried | ⬆ Faucet amount, gas, links up top |
 | Production details | Thin | ⬆ RPC failover + log floor called out |
 | Placeholders | Still `[Insert URL]` | ⬆ Filled with your real URLs |
-
-**One thing you must still paste yourself:** the X thread URL in the header table.
-
-Overall: this README is **submission-ready** for both technical judges and first-time users.
